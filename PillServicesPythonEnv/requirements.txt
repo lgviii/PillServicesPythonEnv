@@ -1,7 +1,9 @@
-django>=3.2.14
+django==3.2.14
 torch>=1.13.0
-imutils>=0.5.4
-numpy>=1.21.6
+imutils==0.5.4
+numpy==1.21.6
 opencv-python-headless>=1.21.6
-keras-ocr>=0.9.1
-tensorflow>=2.11.0
+keras-ocr==0.9.1
+tensorflow==2.11.0
+torchvision==0.13.1
+pillow==9.3.0

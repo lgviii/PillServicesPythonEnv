@@ -16,7 +16,7 @@ def pill_imprint_prediction(file_path):
     predictions = output_predictions(file_path)
     print(predictions)
 
-    return "THIS IS A TEMP OCR PREDICTION for file: " + predictions
+    return predictions
 
 #!wget https://data.lhncbc.nlm.nih.gov/public/Pills/PillProjectDisc1/images/!_4!DFN2-E8ODAOMKCG28FS3M8OQLX.JPG -O pill.jpg
 

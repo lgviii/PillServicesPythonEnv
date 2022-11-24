@@ -33,8 +33,6 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('get_pill_shape_predictions/', views.get_pill_shape_predictions, name='get_pill_shape_predictions'),
     path('get_pill_color_predictions/', views.get_pill_color_predictions, name='get_pill_color_predictions'),
-    #path('get_pill_imprint_predictions/', views.get_pill_imprint_predictions, name='get_pill_imprint_predictions')
-
     path('get_pill_imprint_predictions/', views.get_pill_imprint_predictions, name='get_pill_imprint_predictions')
 
 ]

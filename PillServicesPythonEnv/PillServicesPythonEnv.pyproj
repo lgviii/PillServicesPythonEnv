@@ -30,6 +30,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="manage.py" />
+    <Compile Include="PillServicesPythonEnv\Pytorch_Infer_Shape.py" />
+    <Compile Include="PillServicesPythonEnv\Pytorch_Infer_Color.py" />
     <Compile Include="PillServicesPythonEnv\OCR.py" />
     <Compile Include="PillServicesPythonEnv\views.py" />
     <Compile Include="PillServicesPythonEnv\__init__.py" />
@@ -38,9 +40,12 @@
     <Compile Include="PillServicesPythonEnv\wsgi.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="pytorch-models\color_224x224_all_nw_20221123_145853_0.6352371191651914_.all_files" />
+    <Content Include="pytorch-models\shape_224x224_nw_20221123_123637_0.6524439918533604_.all_files" />
     <Content Include="requirements.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="pytorch-models\" />
     <Folder Include="PillServicesPythonEnv\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.Django.targets" />
