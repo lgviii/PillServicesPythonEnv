@@ -118,7 +118,7 @@ def generate_inferences_for_image(model, softmax, img_transform, classes: List[s
     :return: dict that maps class name -> probability, ordered from highest
              probability to lowest probability
     """
-    img = Image.open(image_path)
+    img = Image.open(image_path).convert('RGB')
     width, height = img.size
     print("width")
     print(width)
