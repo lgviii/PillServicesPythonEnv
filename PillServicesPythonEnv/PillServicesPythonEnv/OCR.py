@@ -3,9 +3,11 @@ from typing import List
 import imutils as imutils
 import numpy as np
 import cv2
-import keras_ocr
+import easyocr
 
 os.environ["KERAS_OCR_CACHE_DIR"] = "./models"
+os.environ["EASYOCR_MODULE_PATH"] = "./models"
+
 
 def pill_imprint_prediction(file_path):
     # Try running prediction on sample image
@@ -21,16 +23,25 @@ def pill_imprint_prediction(file_path):
 #!wget https://data.lhncbc.nlm.nih.gov/public/Pills/PillProjectDisc1/images/!_4!DFN2-E8ODAOMKCG28FS3M8OQLX.JPG -O pill.jpg
 
 
-def create_pipeline():
-    # keras-ocr will automatically download pretrained
-    # weights for the detector and recognizer.
-    # Set environment variable KERAS_OCR_CACHE_DIR to specify where the weights get downloaded
-    pipeline = keras_ocr.pipeline.Pipeline()
-    return pipeline
+def generate_ocr(model_path=None, gpu=True):
+    """
+    Creates the EasyOCR object that will be used to generate text predictions.
+
+    :param model_path: storage directory in which the downloaded detection and
+                       recognition models will be placed.  If not specified,
+                       models will be read from a directory as defined by the
+                       environment variable EASYOCR_MODULE_PATH (preferred),
+                       MODULE_PATH (if defined), or ~/.EasyOCR/.
+    :param gpu: True if the GPU should be used for predictions, False if not,
+                defaults to True
+    :return: EasyOCR object used to generate text predictions
+    """
+    return easyocr.Reader(["en"], gpu=gpu, model_storage_directory=model_path)
 
 
 def _create_image(image_file: str) -> np.ndarray:
-    image = keras_ocr.tools.read(image_file)
+    image = cv2.imread(image_file)
+    # No need to convert back to RGB, easyocr can handle BGR
     return image
 
 
@@ -42,25 +53,32 @@ def _sharpen_image(image) -> np.ndarray:
     return image_sharp
 
 
-def _generate_single_prediction_set(pipeline, image) -> List[str]:
-    prediction_groups = pipeline.recognize([image])
-    predictions = [prediction[0] for prediction in prediction_groups[0]]
+def _generate_single_prediction_set(reader: easyocr.Reader, image: np.ndarray) -> List[str]:
+    # By default, easyocr outputs list format with each element being a tuple of
+    # ([bounding box 2D array], text, confidence)
+    full_prediction = reader.readtext(image)
+    predictions = []
+    for word in full_prediction:
+        conf = word[2]
+        text = word[1]
+        if conf > 0 and len(text) > 0:
+            predictions.append(text)
     return predictions
 
 
-def generate_predictions(pipeline, image_file: str, rotate: bool = False) -> List[List[str]]:
+def generate_predictions(ocr, image_file: str, rotate: bool = False) -> List[List[str]]:
     """
     Generates predictions from the specified image file, optionally rotating it by 90, 180, and 270 degrees (useful for
     testing accuracy against test images).
 
-    Note that the keras-ocr pipeline object is assumed to be created by the caller.  This is to facilitate batch
-    testing, so the pipeline doesn't get reinitialized for each image tested.
+    Note that the OCR object is assumed to be created by the caller.  This is to facilitate batch testing, so the OCR
+    object doesn't get reinitialized for each image tested.
 
     Note that the returned object will NOT be an empty List if no text is recognized.  It will instead contain one or
     more empty Lists, each from a permutation of the supplied image.
 
-    :param pipeline: keras-ocr pipeline, created/initialized outside this method so that batch testing doesn't have to
-                     recreate it for each image tested
+    :param ocr: OCR library object used to generate predictions, created/initialized outside this method so that batch
+                testing doesn't have to recreate it for each image tested
     :param image_file: path of the image file to check for text
     :param rotate: True if predictions should also be generated for the image at 90, 180, and 270 degrees, intended
                    for use with batch testing of stock images that may be rotated, defaults to False
@@ -80,11 +98,12 @@ def generate_predictions(pipeline, image_file: str, rotate: bool = False) -> Lis
                     rotated = image
                 else:
                     rotated = imutils.rotate_bound(image, angle)
-                all_predictions.append(_generate_single_prediction_set(pipeline, rotated))
+                all_predictions.append(_generate_single_prediction_set(ocr, rotated))
         else:
-            all_predictions.append(_generate_single_prediction_set(pipeline, image))
+            all_predictions.append(_generate_single_prediction_set(ocr, image))
 
     return all_predictions
+
 
 def output_predictions(image_file: str, output_file: str = None, rotate: bool = False, delimiter: str = ";") -> str:
     """
@@ -107,7 +126,7 @@ def output_predictions(image_file: str, output_file: str = None, rotate: bool = 
     :return: string containing predictions from all permutations, with the text from each permutation prediction
              concatenated to a single line using the specified delimiter, and each permutation line separated by "\n"
     """
-    pipeline = create_pipeline()
+    pipeline = generate_ocr()
     all_predictions = generate_predictions(pipeline, image_file, rotate)
 
     result = ""
