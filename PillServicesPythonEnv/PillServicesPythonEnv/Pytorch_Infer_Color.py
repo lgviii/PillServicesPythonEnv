@@ -175,7 +175,7 @@ def generate_color_inferences(model, image_path: str):
 def run_color_inferences(image_path):
     print("run_color_inferences")
 
-    model = generate_model(len(classes), "C:/Users/lgvii/source/repos/PillServicesPythonEnv/PillServicesPythonEnv/pytorch-models/color_224x224_all_nw_20221123_145853_0.6352371191651914_.all_files")
+    model = generate_model(len(classes), "C:/Users/lgvii/source/repos/PillServicesPythonEnv/PillServicesPythonEnv/pytorch-models/color_model_80_20_model.pth5745821318_0.9032529444756029_.all_files")
 
     return generate_color_inferences(model, image_path)
 
