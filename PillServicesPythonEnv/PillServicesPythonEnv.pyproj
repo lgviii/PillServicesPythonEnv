@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="pytorch-models\color_224x224_all_nw_20221123_145853_0.6352371191651914_.all_files" />
+    <Content Include="pytorch-models\color_model_80_20_model.pth5745821318_0.9032529444756029_.all_files" />
     <Content Include="pytorch-models\shape_224x224_nw_20221123_123637_0.6524439918533604_.all_files" />
     <Content Include="requirements.txt" />
   </ItemGroup>
