@@ -82,14 +82,13 @@ def generate_model(num_classes: int, model_path: str):
     model.eval()
     return model
 
-def generate_transform(size=224):
+
+def generate_transform():
     print("generate_transform")
-    # The new improved models are trained on 224x224 images, so default to that
-    # This will scale the image so the short edge is the specified size, then crop the center
-    # to generate a square result of that size
+    # Mark's model is trained on 450x600 images, without maintaining the original aspect ratio, so just use a
+    # straight resize without a center crop
     img_transform = transforms.Compose([
-        transforms.Resize(size, interpolation=transforms.InterpolationMode.LANCZOS),
-        transforms.CenterCrop(size),
+        transforms.Resize((450, 600), interpolation=transforms.InterpolationMode.LANCZOS),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
@@ -163,8 +162,7 @@ def generate_color_inferences(model, image_path: str):
     softmax = torch.nn.Softmax(dim=1)
     # MAKE SURE ALL YOUR IMAGE CLASSES IN HERE AND THAT THEY ARE IN ALPHABETICAL ORDER
     
-
-    result = generate_inferences_for_image(model, softmax=softmax, 
+    result = generate_inferences_for_image(model, softmax=softmax,
                                            img_transform=transform,
                                            classes=classes, 
                                            image_path=image_path)
