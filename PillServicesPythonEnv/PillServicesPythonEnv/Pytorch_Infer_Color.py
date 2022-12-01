@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 
+from django.conf import settings
+
 
 classes = [
         "BLACK",
@@ -173,7 +175,9 @@ def generate_color_inferences(model, image_path: str):
 def run_color_inferences(image_path):
     print("run_color_inferences")
 
-    model = generate_model(len(classes), "C:/Users/lgvii/source/repos/PillServicesPythonEnv/PillServicesPythonEnv/pytorch-models/color_model_80_20_model.pth5745821318_0.9032529444756029_.all_files")
+    model_path = os.path.join(settings.BASE_DIR, "pytorch-models",
+                              "color_model_80_20_model.pth5745821318_0.9032529444756029_.all_files")
+    model = generate_model(len(classes), model_path)
 
     return generate_color_inferences(model, image_path)
 
