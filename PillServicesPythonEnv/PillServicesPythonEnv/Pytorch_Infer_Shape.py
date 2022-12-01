@@ -159,7 +159,7 @@ def generate_inferences_for_image(model, softmax, img_transform, classes: List[s
         return list(result.items())
 
 def generate_shape_inferences(model, image_path: str):
-    transform = generate_transform(480)
+    transform = generate_transform()
     softmax = torch.nn.Softmax(dim=1)
 
     result = generate_inferences_for_image(model, softmax=softmax, 
