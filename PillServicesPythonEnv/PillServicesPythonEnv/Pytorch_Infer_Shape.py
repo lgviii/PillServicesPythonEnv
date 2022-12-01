@@ -5,7 +5,8 @@ from PIL import Image
 import torch
 import torch.nn as nn
 from torchvision import transforms, models
-import json
+
+from django.conf import settings
 
 classes = [
         "CAPSULE",
@@ -171,8 +172,10 @@ def generate_shape_inferences(model, image_path: str):
 
 def run_shape_inferences(image_path):
     # MAKE SURE ALL YOUR IMAGE CLASSES IN HERE AND THAT THEY ARE IN ALPHABETICAL ORDER
-    
-    model = generate_model(len(classes), "C:/Users/lgvii/source/repos/PillServicesPythonEnv/PillServicesPythonEnv/pytorch-models/shape_224x224_nw_20221123_123637_0.6524439918533604_.all_files")
+
+    model_path = os.path.join(settings.BASE_DIR, "pytorch-models",
+                              "shape_224x224_nw_20221123_123637_0.6524439918533604_.all_files")
+    model = generate_model(len(classes), model_path)
     return generate_shape_inferences(model, image_path)
 
 
