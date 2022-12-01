@@ -25,11 +25,10 @@ These libraries will be used by prediction or test scripts for both OCR models.
 Note that if opencv-python is installed, both will install opencv-python-headless as well.
 
 ### EasyOCR
-EasyOCR requires PyTorch.  This includes torch, torchaudio, and torchvision.  If running on Windows, PyTorch must 
+EasyOCR requires PyTorch.  This includes minimally torch and torchvision.  If running on Windows, PyTorch must 
 be installed first.
 
 * torch
-* torchaudio
 * torchvision
 * easyocr
 
