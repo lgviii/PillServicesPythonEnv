@@ -1,6 +1,6 @@
 import os
 
-import test_utils as utils
+import ocr__accuracy_test_utils as utils
 import easyocr_predict as predict
 
 

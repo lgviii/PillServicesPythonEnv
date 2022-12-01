@@ -1,6 +1,6 @@
 import os
 
-import test_utils as utils
+import ocr__accuracy_test_utils as utils
 import keras_predict as predict
 
 
