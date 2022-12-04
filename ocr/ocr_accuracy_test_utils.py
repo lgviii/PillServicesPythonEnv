@@ -7,28 +7,6 @@ import Levenshtein
 import pandas as pd
 
 
-def read_labels_file(labels_filepath: str, parent_folder: str) -> List[Tuple[str, str]]:
-    """Read a labels file and return (filepath, label) tuples.
-
-    Labels file assumed to be in the format <Image file name>, "<imprint text>"
-    Imprint text expected to list all imprint items separated by semicolons
-
-    Args:
-        labels_filepath: Path to labels file
-        parent_folder: Path to parent folder containing the image files
-    """
-    with open(labels_filepath, encoding="utf-8-sig") as f:
-        labels_raw = [l.strip().split(",") for l in f.readlines()]
-        labels = [
-            (
-                os.path.join(parent_folder, segments[0].strip()),
-                ",".join(segments[1:]).strip()[1:-1],
-            )
-            for segments in labels_raw
-        ]
-    return labels
-
-
 def read_labels_file_to_dataframe(labels_filepath: str, parent_image_dir: str) -> pd.DataFrame :
     """Read a labels file and return a pandas DataFrame with a new "file_path" column containing the full path to the
     image file in that entry.
@@ -56,31 +34,6 @@ def read_labels_file_to_dataframe(labels_filepath: str, parent_image_dir: str) -
     labels = labels.astype("string")
     # Fill in just the imprint_rating column missing values with "Empty" for accuracy tracking
     labels["imprint_rating"] = labels["imprint_rating"].fillna("Empty")
-    return labels
-
-
-def read_c3pi_labels_file(labels_filepath, parent_folder) -> List[Tuple[str, str, str]]:
-    """
-    Read a labels file and return (filepath, label) tuples.
-
-    Labels file assumed to be in the format <C3PI directory>, <Image file name>, <imprint rating>, "<imprint text>"
-    Imprint text expected to list all imprint items separated by semicolons
-
-    :param labels_filepath: Path to labels file
-    :param parent_folder: Path to parent folder containing the C3PI data in the original C3PI directory structure
-    :return: List of tuples, with the full path to the image file as first element, the imprint rating as second
-             element, and the imprint text as third element
-    """
-    with open(labels_filepath, encoding="utf-8-sig") as f:
-        labels_raw = [l.strip().split(",") for l in f.readlines()]
-        labels = [
-            (
-                os.path.join(parent_folder, segments[0], "images", segments[1].strip()),
-                segments[2],
-                ",".join(segments[3:]).strip()[1:-1],
-            )
-            for segments in labels_raw
-        ]
     return labels
 
 
@@ -116,7 +69,28 @@ def read_c3pi_to_dataframe(labels_filepath: str, parent_image_dir: str) -> pd.Da
     return labels
 
 
-def sample_images(labels: pd.DataFrame, head=True, sample=False, n=100, start_index: int = None) -> (str, pd.DataFrame):
+def sample_images(labels: pd.DataFrame, head: bool = False, sample: bool = False, n: int = 100,
+                  start_index: int = None) -> (str, pd.DataFrame):
+    """
+    Narrows down the images that will be used for testing based on the specified options, if any, returning a tuple
+    containing a display string to be appended to the output file name and the final DataFrame containing the images
+    to be tested.
+
+    Options are preferentially used in the order of the arguments.  If head is True, sample and start_index are ignored.
+    If head is False but sample is True, start_index is ignored.
+
+    :param labels: pandas DataFrame to be reduced as specified
+    :param head: True if only the first n entries should be included in the returned DataFrame, False if some other
+                 selection mechanism (if any) should be used, defaults to False
+    :param sample: True if only a random sample of n entries should be included in the returned DataFrame, False if
+                   some other selection mechanism (if any) should be used, ignored if head is True, defaults to False
+    :param n: number of entries to include in the returned DataFrame, only used if either head or sample are True,
+              ignored otherwise, defaults to 100
+    :param start_index: index of the first entry to be included in the returned DataFrame, skipping all previous
+                        entries, ignored if either head or sample are True, defaults to None
+    :return: tuple containing a display string to be appended to the output file name based on the specified options
+             plus the final DataFrame containing the images to be tested based
+    """
     sample_display = ""
     if head:
         labels = labels.head(n=n)
@@ -163,78 +137,20 @@ def find_strict_match(prediction: str, imprint_sections: List[str]) -> (int, flo
     return -1, 0.0
 
 
-def generate_regex_chars(prediction: str) -> List[str]:
-    regex_chars = []
-    for char in prediction:
-        # o and 0 are frequently confused
-        if char in {"o", "0"}:
-            regex_chars.append("[o0]")
-        # e, 3, 8, s, and 5 seem to be often interchanged
-        elif char in {"e", "3", "8", "5", "s"}:
-            regex_chars.append("[e385s]")
-        # 1, i, and l are frequently confused
-        elif char in {"1", "l", "i"}:
-            regex_chars.append("[1il]")
-        elif char in {"4", "a"}:
-            regex_chars.append("[4a]")
-        else:
-            regex_chars.append(char)
-
-    return regex_chars
-
-
-def match_by_regex(regex_chars: List[str], imprint_sections: List[str], n_subs: int) -> (int, float):
-    # Generate regular expressions based on the number of allowed "substitute" characters
-    patterns = []
-    # Add "$" to the end of each regex string to ensure we're only matching the whole string, not just the beginning
-    if n_subs == 0:
-        patterns.append(re.compile("".join(regex_chars) + "$"))
-    elif n_subs == 1:
-        for i in range(len(regex_chars)):
-            regex = ""
-            for j, regex_char in enumerate(regex_chars):
-                if j == i:
-                    regex = regex + "."
-                else:
-                    regex = regex + regex_char
-            patterns.append(re.compile(regex + "$"))
-
-    # Reduce accuracy by 3/4 if using a regex
-    accuracy_factor = 0.75 * (1 - (n_subs / len(regex_chars)))
-
-    for i, imprint in enumerate(imprint_sections):
-        for pattern in patterns:
-            if pattern.match(imprint):
-                return i, accuracy_factor
-    return -1, 0.0
-
-
-def match_substring(prediction, imprint_sections: List[str]) -> (int, float):
-    for i, imprint in enumerate(imprint_sections):
-        if prediction in imprint:
-            # Reduce accuracy based on the actual number of matched characters, times further factor of 0.75
-            return i, 0.75 * len(prediction) / len(imprint)
-    return -1, 0.0
-
-
-def find_loose_match(prediction: str, imprint_sections: List[str]) -> (int, float):
-    index, factor = find_strict_match(prediction, imprint_sections)
-    if index > -1:
-        return index, factor
-    else:
-        regex_chars = generate_regex_chars(prediction)
-        index, factor = match_by_regex(regex_chars, imprint_sections, 0)
-        if index > -1:
-            return index, factor
-        else:
-            index, factor = match_by_regex(regex_chars, imprint_sections, 1)
-            if index > -1:
-                return index, factor
-            else:
-                return match_substring(prediction, imprint_sections)
-
-
 def find_distance(prediction: str, imprint_sections: List[str]) -> (int, float):
+    """
+    Find the imprint section that best matches the specified prediction "word", based on Levenshtein ration, with a
+    cutoff of 0.5 minimum accuracy.
+
+    Returns a tuple containing the index of the matching imprint section and the calculated accuracy of the match, or
+    (-1, 0.0) if none of the imprint sections match at better than 0.5
+
+    :param prediction: Predicted text, should not be null/empty
+    :param imprint_sections: List of all the imprint sections
+    :return: Tuple containing the index of the imprint section that is the closest match to the prediction (if any)
+             and the Levenshtein ratio accuracy, or (-1, 0.0) if none of the imprint sections match the prediction
+             within 0.5 accuracy
+    """
     # Try using the Levenshtein ratio to match, with a cutoff of 0.5
     # No need to first check exact match, since that will have a distance of 1.0
     # and end up being the best distance
@@ -253,26 +169,43 @@ def find_distance(prediction: str, imprint_sections: List[str]) -> (int, float):
 
 
 def calc_accuracy(predictions: List[str], imprint: str, match_imprint) -> float:
-    # Convert the imprint to lower case to avoid case issues and break it into separate portions using the
-    # semicolon delimiter
-    imprint_sections = imprint.lower().split(";")
-    # Convert predictions into lower case as well to make matching easier
-    predictions = [prediction.lower() for prediction in predictions]
+    """
+    Calculates the overall accuracy for the specified imprint predictions from a single image permutation, using the
+    specified match_imprint function to find matching imprint sections and calculate individual "word" match accuracy.
 
-    num_sections_matched = 0.0
-    sections = imprint_sections.copy()
-    if len(predictions) > 0:
-        for prediction in predictions:
-            if len(prediction.strip()):
-                matching_index, factor = match_imprint(prediction, sections)
-                # If a match is found, remove that element from the list of imprint sections in case the prediction has
-                # duplicates but the imprints don't - that way only the first one will be counted as a successful match
-                if matching_index > -1:
-                    print(f"Prediction: {prediction}, match: {sections[matching_index]}, factor: {factor}")
-                    num_sections_matched = num_sections_matched + factor
-                    del sections[matching_index]
+    Iterates across each predicted "word" to find a matching imprint section.  If found, removes that imprint section
+    from future iterations to avoid incorrect duplicate matches.  Adds together the total accuracy for each predicted
+    word, and divides by the total number of imprint sections to generate the overall accuracy of the predictions.
 
-    return num_sections_matched / len(imprint_sections)
+    :param predictions: List of predicted "words" from a single image permutation
+    :param imprint: actual imprint for the pill, containing sections separated by a semicolon
+    :param match_imprint: function used to match a predicted "word" against an imprint section
+    :return: overall accuracy in matching the predicted "words" against the specified imprint
+    """
+    if pd.isnull(imprint):
+        empty_prediction = len(predictions) == 0 or "".join(predictions).strip() == ""
+        return 1.0 if empty_prediction else 0.0
+    else:
+        # Convert the imprint to lower case to avoid case issues and break it into separate portions using the
+        # semicolon delimiter
+        imprint_sections = imprint.lower().split(";")
+        # Convert predictions into lower case as well to make matching easier
+        predictions = [prediction.lower() for prediction in predictions]
+
+        sections_matched_accuracy = 0.0
+        sections = imprint_sections.copy()
+        if len(predictions) > 0:
+            for prediction in predictions:
+                if len(prediction.strip()):
+                    matching_index, factor = match_imprint(prediction, sections)
+                    # If a match is found, remove that element from the list of imprint sections in case the prediction has
+                    # duplicates but the imprints don't - that way only the first one will be counted as a successful match
+                    if matching_index > -1:
+                        print(f"Prediction: {prediction}, match: {sections[matching_index]}, factor: {factor}")
+                        sections_matched_accuracy = sections_matched_accuracy + factor
+                        del sections[matching_index]
+
+        return sections_matched_accuracy / len(imprint_sections)
 
 
 def test_image(ocr, df_row, output_file: str, do_ocr, match_imprint) -> float:
@@ -287,11 +220,7 @@ def test_image(ocr, df_row, output_file: str, do_ocr, match_imprint) -> float:
     highest_accuracy = 0.0
 
     for prediction_group in all_predictions:
-        if pd.isnull(imprint):
-            empty_prediction = len(prediction_group) == 0 or "".join(prediction_group) == ""
-            accuracy = 1.0 if empty_prediction else 0.0
-        else:
-            accuracy = calc_accuracy(prediction_group, imprint, match_imprint)
+        accuracy = calc_accuracy(prediction_group, imprint, match_imprint)
         prediction_outputs.append(";".join(prediction_group))
         prediction_outputs.append(accuracy)
         if accuracy > highest_accuracy:
