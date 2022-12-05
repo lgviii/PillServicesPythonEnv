@@ -1,5 +1,5 @@
 # OCR
-Contains functionality used to generate predictions and do batch accuracy testing for EasyOCR, keras-ocr, and
+This subfolder contains functionality used to generate predictions and do batch accuracy testing for EasyOCR, keras-ocr, and
 PyTesseract libraries.
 
 Note that all the scripts are written to run on my home system, so the paths in the accuracy modules are set to my 
