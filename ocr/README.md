@@ -1,38 +1,50 @@
-# DGMD E-14 Final Project - Python
-This project contains Python scripts  
-
-Note that all the scripts are written to run on my home system, so they assume the following folder structure exists:
-* (parent directory)\color - contains all color-related label files, sorted image directories, and output
-* (parent directory)\shape - contains all shape-related label files, sorted image directories, and output
-* (parent_directory)\ocr - contains all OCR-related label files
-* (parent_directory)\ocr\outputs - directory in which all accuracy output files should be created
-* (parent directory)\images\C3PI full data - directory in which the C3PI images have been downloaded, maintaining the
-same directory structure as on the [C3PI download website](https://data.lhncbc.nlm.nih.gov/public/Pills/index.html)
-
 # OCR
-## Requirements
-Some libraries are required to run any of the scripts, while some are only required for the particular OCR library.
+This subfolder contains functionality used to generate predictions and do batch accuracy testing for EasyOCR, keras-ocr, and
+PyTesseract libraries.
 
-### Shared
-These libraries will be used by prediction or test scripts for both OCR models.
+Note that all the scripts are written to run on my home system, so the paths in the accuracy modules are set to my 
+directories.
+
+Also, for tests run on the original C3PI_Test and MC_CHALLENGE_V1.0 images from the C3PI data source, it's assumed that
+the images will have been downloaded locally, maintaining the same directory structure as on the
+[C3PI download website](https://data.lhncbc.nlm.nih.gov/public/Pills/index.html).
+
+## Content
+* [Requirements](#requirements)
+* [Scripts](#scripts)
+* [Usage](#usage)
+
+# Requirements
+The requirements.txt lists the minimal libraries required to run ALL scripts in this package.  However, if only the
+tests for one particular OCR library will be run, only some of the listed libraries are actually required.  Some 
+libraries are required to run any of the scripts, while some are only required for the particular OCR library.
+
+## Shared
+These libraries will be used by prediction or test scripts for all OCR models.
 
 * imutils (image manipulation utilities)
 * levenshtein (string distance calculation)
 * numpy
-* pandas
 * opencv-python/opencv-python-headless
+* pandas
+* Pillow
 
-Note that if opencv-python is installed, both will install opencv-python-headless as well.
+Note that if opencv-python is installed, both EasyOCR and keras-ocr will still install opencv-python-headless as well.
 
-### EasyOCR
+If tests should be run using a GPU (only usable for EasyOCR or keras-ocr), the NVidia CUDA library should also be 
+installed.
+
+## EasyOCR
 EasyOCR requires PyTorch.  This includes minimally torch and torchvision.  If running on Windows, PyTorch must 
-be installed first.
+be installed first.  It's probably best to pre-install this in any case to ensure you get the appropriate version for
+CPU vs GPU, and to ensure you have any additional pre-requisites (such as the CUDA library) for PyTorch itself.  
+https://pytorch.org/get-started/locally/
 
 * torch
 * torchvision
 * easyocr
 
-### keras-ocr
+## keras-ocr
 keras-ocr requires TensorFlow.  It's probably best to pre-install this to ensure you get the appropriate version for
 CPU vs GPU, and to ensure you have any additional pre-requisites for TensorFlow itself.  
 https://www.tensorflow.org/install
@@ -40,20 +52,20 @@ https://www.tensorflow.org/install
 * tensorflow (this is the GPU version, for CPU-only use tensorflow-cpu - follow install instructions)
 * keras-ocr
 
-### PyTesseract
+## PyTesseract
 PyTesseract requires a separate installation of the Google Tesseract engine.  If the tesseract executable isn't added
 to the system path, the `generate_ocr()` method must be run to specify the directory containing the executable.
 
 * pytesseract
 
-## Usage/Scripts
+# Scripts
 For each OCR library, there's an associated "X_predict.py" and "X_accuracy.py" module.  There's an additional 
-"test_utils.py" module containing functions shared across both "X_accuracy.py" modules.
+"ocr_accuracy_test_utils.py" module containing functions shared across all "X_accuracy.py" modules.
 
-### X_predict.py
+## X_predict.py
 This module contains functions used to generate predictions from an image file using the specific OCR library.
 
-#### `generate_ocr()`
+### `generate_ocr()`
 For both EasyOCR and keras-ocr, the `generate_ocr()` function must be called first, to create the OCR object that will
 be used to do the predictions.  This is done separately from the actual `generate_predictions()` function to 
 facilitate reuse for batch testing.
@@ -63,7 +75,7 @@ tesseract executable that will be used by PyTesseract.
 
 The `generate_ocr()` function may or may not take arguments - check the specific module.
 
-#### `generate_predictions()`
+### `generate_predictions()`
 This is the function that should be called to generate text predictions for a single image file.
 
 The `generate_predictions()` function has the same signature for all libraries:  
@@ -80,40 +92,142 @@ of these Lists, one per permutation.  At minimum, there will be two permutations
 for a sharpened version of the image.  If rotate is True, there will be eight permutations, one for each orientation of
 original and sharpened image version.
 
-### test_utils.py
-This module contains a bunch of functions useful for batch testing accuracy of the models.
+## ocr_accuracy_test_utils.py
+This module contains functions used to perform batch testing of OCR model accuracy.
 
-### X_accuracy.py
-This module contains the batch prediction generation and accuracy calculations for each OCR library.
+### Reading the Labels CSV File
+There are two functions provided for reading an OCR labels CSV file.  One, `read_c3pi_to_dataframe()`, is for use with 
+the original C3PI dataset images, downloaded to the local system and structured in subdirectories maintaining the same
+directory structure as on the [C3PI download website](https://data.lhncbc.nlm.nih.gov/public/Pills/index.html).  The 
+other, `read_labels_file_to_dataframe()`, is for use with the split_SPL padded square images (the ones used for 
+end-to-end validation testing), which should all be collected into a single directory.
 
-#### `run_test_c3pi_original()`
-For all three libraries, there's a function with the signature:
-```python
-def run_test_c3pi_original(parent_folder: str, text_file_name: str, sample: bool = False, head: bool = False,
-                           n_entries: int = None, start_index: int = None) -> None:
-```
-This method is used to run predictions against all files 
+The format of the OCR labels CSV file depends on the function:
+`read_c3pi_to_dataframe()` or `read_labels_file_to_dataframe()`. 
 
-The `parent_folder` should be the master directory in which all the OCR labels, output, and images are found.  See the 
-note at the beginnng about the expected folder structure.
+The `read_c3pi_to_dataframe()` function assumes the CSV label file will be provided in the format (without headers): 
+* "C3PI directory"
+* "Image file name"
+* Imprint rating
+* Imprint type
+* "Imprint text"
+* NDC11
+* Part
 
-It assumes that `text_file_name` will be the name of a CSV file provided in the format:  
-"(C3PI directory)", "(Image file name)", (Imprint rating), (Imprint type), "(Imprint text)", (NDC11), (Part)
+The `read_labels_file_to_dataframe()` function assumes the CSV label file will be provided in the format 
+(without headers): 
+* "Image file name"
+* Imprint rating
+* Imprint type
+* "Imprint text"
+* NDC11
+* Part
 
-Generated DataFrame columns:  
-`["image_dir", "image_file", "imprint_rating", "imprint_type", "imprint", "ndc11", "part", "file_path"]`
+In either case, the generated DataFrame columns will include:  
+`["image_file", "imprint_rating", "imprint_type", "imprint", "ndc11", "part", "file_path"]`
+For the C3PI source, there will be an additional `image_dir` column.
 
-The file_path column contains the full path for that image, and will be used by other test methods to load the image.
+The `file_path` column contains the full path for that image, and will be used by other test methods to load the image.
 
 Note that (Imprint rating), (Imprint type), and (Imprint text) may all be null.  If (Imprint rating) is null, it will 
 be replaced with "Empty" for accuracy calculation across imprint rating groups.
 
-#### `run_test_spl_front_square()`
-For EasyOCR and keras-ocr, there's an additional function with the signature:
+### Calculating Accuracy
+There are technically two functions (`find_strict_match()` and `find_distance()`) provided for calculating OCR 
+prediction accuracy compared with the actual imprint.  However, only the `find_distance()` function is actually used.
+
+This function is based on the Levenshtein distance for measuring similarity between two strings.  In particular, it uses
+the `ratio()` function from the `levenshtein` Python library, which calculates the normalized similarity in the range
+[0, 1], which is 1 - normalized distance.  So a perfect match = 1.0, while a failed match = 0.0. 
+
+For each image, multiple permutations of that image are generated, both rotational and using image sharpening.
+The overall accuracy for the image is then the highest accuracy of the predictions from any of the permutations, 
+where the accuracy for each permutation is calculated using the `find_distance()` method.
+
+Total accuracy is calculated by averaging the accuracy across all the images tested.
+
+### Accuracy Output
+The predictions results and accuracy are output into a CSV file with the following columns (without column headers):
+* "Image file name", 
+* NDC11
+* Part,
+* Imprint rating,
+* Imprint type,
+* Total time to generate predictions for the image in seconds
+* "Imprint text",
+* Highest accuracy across all permutations for the image
+* Predictions for permutation 1 (concatenated with ';')
+* Accuracy for permuatation 1
+* Predictions for permutation 2
+* Accuracy for permutation 2
+* etc.
+
+## X_accuracy.py
+This module contains the batch prediction generation and accuracy calculations for each OCR library.
+
+### `run_tests()`
+Each module contains a `run_tests()` method which does the actual work of running the batch accuracy testing.  It 
+initializes the library OCR object if appropriate, loads image files with imprints and associated metadata from a 
+labels file, and runs tests on the images specified in the labels file (or a subset of them if desired).
+
+It has the signature:
 ```python
-def run_test_spl_front_square(parent_folder: str, text_file_name: str, image_parent_dir: str,
-                              sample: bool = False, head: bool = False,
-                              n_entries: int = None, start_index: int = None) -> None:
+def run_tests(parent_dir: str, labels_file_name: str, image_parent_dir: str, generate_labels,
+              head: bool = False, sample: bool = False, n_entries: int = None, start_index: int = None) -> None:
 ```
 
+The `parent_folder` argument is the master directory containing the CSV file containing the OCR labels, as well an 
+"output" directory to which the accuracy testing results should be written. 
 
+The `labels_file_name` argument is the name of the CSV file containing the image file names with associated imprint and 
+imprint metadata.  See below for more discussion.
+
+The `image_parent_dir` argument is the directory containing the actual image files to be tested.  It should either 
+contain all the image files directly, or (for C3PI images) contain the same subdirectory structure as on the C3PI 
+download website.    
+See [Reading the Labels CSV File](#reading-the-labels-csv-file) for more info.
+
+The `generate_labels` argument is the actual function from the `ocr_accuracy_test_utils` module used to load the data
+from the specified labels file.  See below for more discussion.
+
+The `head` argument, when True, indicates that just the first `n_entries` image files from the labels dataset should be
+tested.  When set to True, the `sample` and `start_index` arguments are ignored.  Defaults to False.
+
+The `sample` argument, when True, indicates that a random sample of `n_entries` image files from the labels dataset
+should be tested.  When True, the `start_index` argument is ignored.  Defaults to False.
+
+The `n_entries` argument is only used if either `head` or `sample` are True, and specifies the number of image files 
+that should be selected from the labels dataset.  Defaults to None.
+
+The `start_index` argument specifies the first entry from the labels dataset that should be used, skipping all previous 
+entries.  Defaults to None.
+
+### Labels CSV File
+
+The format of the OCR labels CSV file depends on the function provided for `generate_labels`, which should be either
+`read_labels_file_to_dataframe()` or `read_c3pi_to_dataframe()` from the `ocr_accuracy_test_utils` module.
+
+See description of these methods above in [Reading the Labels CSV File](#reading-the-labels-csv-file)
+
+### Accuracy Output File
+The results of the accuracy calculation will be output to a CSV file with a name constructed based on the provided
+labels file name, combined with a prefix specific to the OCR library used and a suffix describing the sampling used 
+(if any).
+
+For example, if using the labels file "pill_labels_challenge.csv" with the keras-ocr library, using only the first 100
+images, the output file will be named "keras_accuracy_pill_labels_challenge_5_distance.csv".
+
+## `combined_ocr_accuracy.py`
+This module contains the code used to calculate the accuracy of predictions generated when combining the output from 
+the split "front" and "back" SPL images.  It uses the previous CSV output files for each set of images and combines the 
+the predictions for an image permutation, then calculates the accuracy across the combined predictions.
+
+# Usage
+To run the batch accuracy testing for a library, first install any required libraries, including any non-Python 
+libraries such as Tesseract or (for GPU usage) CUDA.
+
+Download/generate the images that will be used for the batch testing.  If using new images, create a labels file with
+the appropriate format, as described above.
+
+In the appropriate X_accuracy.py, change the arguments supplied to run_tests to use the appropriate parent folder and
+image directory locations, as described above, and run that module.

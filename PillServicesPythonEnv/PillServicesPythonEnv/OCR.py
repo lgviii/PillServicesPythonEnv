@@ -107,7 +107,7 @@ def generate_predictions(ocr, image_file: str, rotate: bool = False) -> List[Lis
 
 def output_predictions(image_file: str, output_file: str = None, rotate: bool = False, delimiter: str = ";") -> str:
     """
-    Creates a keras-ocr pipeline and generates text predictions on the specified image file, optionally writing the
+    Creates an easyocr pipeline and generates text predictions on the specified image file, optionally writing the
     output to a specified output file.
 
     Output will consist of multiple lines, each terminated with "\n", where each line contains all predictions from a
