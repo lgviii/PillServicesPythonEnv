@@ -4,7 +4,22 @@ from PIL import Image, ImageOps
 import sort_utils as util
 
 
-def resize_image_crop(image_file: str, final_width: int, final_height: int) -> Image:
+def resize_image_crop(image_file: str, output_file: str, final_width: int, final_height: int) -> None:
+    """
+    Resizes the specified image to the specified size by shrinking/growing so that one edge matches the final size and
+    the other edge is larger (maintaining the original aspect ratio), then cropping out the center of the image to the
+    final size.  Saves the resized image to the specified output file.
+
+    That is, if the initial size is 100 x 200 and the final size is 50 x 80, the image will first be shrunk to 50 x 100
+    to preserve the original aspect ratio, then center cropped to 50 x 80.
+
+    If the original image is already the final size, it's returned unmodified.
+
+    :param image_file: image to be resized
+    :param output_file: path to use when saving the resized image
+    :param final_width: final width of the resized image
+    :param final_height: final height of the resized image
+    """
     img = Image.open(image_file)
     width = img.width
     height = img.height
@@ -24,20 +39,36 @@ def resize_image_crop(image_file: str, final_width: int, final_height: int) -> I
         delta_width = new_width - final_width
         delta_height = new_height - final_height
         crop = (delta_width // 2, delta_height // 2,
-                new_width - (delta_width // 2), new_height - (delta_height // 2))
+                final_width + (delta_width // 2), final_height + (delta_height // 2))
         new_img = new_img.crop(crop)
-        return new_img
-    # If the size is already correct, just return the opened image
+        new_img.save(output_file, "JPEG", quality=95)
+
+    # If the size is already correct, just copy the original image to the output file
     else:
-        return img
+        shutil.copyfile(image_file, output_file)
 
 
-def resize_image_with_padding(image_file: str, output_file: str, final_width: int, final_height: int):
+def resize_image_with_padding(image_file: str, output_file: str, final_width: int, final_height: int) -> None:
+    """
+    Resizes the specified image to the specified final width and height using padding to preserve the original aspect
+    ratio, saving it as the specified output file.  First resizes the image so that the larger side matches the final
+    size, and then pads the edges of the shorter side using the color of the (almost) top left corner pixel.
+
+    That is, if the initial size is 100 x 200 and the final size is 50 x 80, the image will first be shrunk to 40 x 80
+    to preserve the original aspect ratio, then padded to 50 x 80.
+
+    If the original image is already the final size, it's simply copied to the output file path with no modifications.
+
+    :param image_file: image file containing the image to be resized
+    :param output_file: path to use when saving the resized image
+    :param final_width: final width of the resized image
+    :param final_height: final height of the resized image
+    """
     img = Image.open(image_file)
     width = img.width
     height = img.height
     # Get the color of the top left corner pixel to use for fill if needed, before resizing
-    pixel_color = img.getpixel((0, 0))
+    pixel_color = img.getpixel((1, 1))
 
     # Only convert and save the image if we had to resize or pad, since JPG is lossy
     if width != final_width or height != final_height:
@@ -66,48 +97,38 @@ def resize_image_with_padding(image_file: str, output_file: str, final_width: in
         shutil.copyfile(image_file, output_file)
 
 
-def resize_image_based_on_class(image_file: str, image_class: str, output_file: str, final_width: int, final_height):
+def pad_image_to_square(image_file: str, output_file: str) -> None:
+    """
+    Pads the specified image to be square without changing the size of the larger side, using the color from the
+    (almost) top left corner pixel.
+
+    That is, if the original image is 100x200, it will be padded to 200x200.  If the original image is 50x100, it will
+    be padded to 100x100.
+
+    If the image is already square, it's just copied to the output file path without modifications.
+
+    :param image_file: path to the file containing the image to pad to square
+    :param output_file: path to save the padded square image
+    """
     img = Image.open(image_file)
     width = img.width
     height = img.height
-    # Get the color of the top left corner pixel to use for fill if needed, before resizing
-    pixel_color = img.getpixel((0, 0))
+    # Get the color of the almost top left corner pixel to use for fill if needed, before resizing
+    # Using the very top left sometimes gets a slightly odd color, works better to use the next pixel in
+    pixel_color = img.getpixel((1, 1))
 
-    # Only convert and save the image if we had to resize or pad, since JPG is lossy
-    if width != final_width or height != final_height:
-        new_img = img
-        # If both width and height are wrong, scale the image up or down so that one of the sides is
-        # the correct size
-        if width != final_width and height != final_height:
-            factor = 1.0
-            # For C3PI_TEST, we'll crop instead of pad since these images always have extra background that can be lost
-            # So we want to shrink/grow so that the smaller side is the final size
-            if image_class == "C3PI_Test":
-                factor = max(float(final_width) / width, float(final_height) / height)
-            else:
-                factor = min(float(final_width) / width, float(final_height) / height)
-            new_width = round(factor * width)
-            new_height = round(factor * height)
-            new_img = img.resize((new_width, new_height), Image.LANCZOS)
-        # Now either crop or pad, depending on the image class
-        new_width = new_img.width
-        new_height = new_img.height
-        if image_class == "C3PI_Test":
-            delta_width = new_width - final_width
-            delta_height = new_height - final_height
-            crop = (delta_width // 2, delta_height // 2,
-                    new_width - (delta_width // 2), new_height - (delta_height // 2))
-            new_img = new_img.crop(crop)
-        else:
-            delta_width = final_width - new_width
-            delta_height = final_height - new_height
-            padding = (delta_width // 2,
-                       delta_height // 2,
-                       delta_width - (delta_width // 2),
-                       delta_height - (delta_height // 2))
-            new_img = ImageOps.expand(new_img, padding, pixel_color)
-
-        # Finally, save the modified image
+    # Only convert and save the image if we had to pad (image isn't already square), since JPG is lossy
+    if width != height:
+        size = max(width, height)
+        # Calculate any padding needed to extend either side to the final size
+        # https://jdhao.github.io/2017/11/06/resize-image-to-square-with-padding/
+        delta_width = size - width
+        delta_height = size - height
+        padding = (delta_width // 2,
+                   delta_height // 2,
+                   delta_width - (delta_width // 2),
+                   delta_height - (delta_height // 2))
+        new_img = ImageOps.expand(img, padding, pixel_color)
         new_img.save(output_file, "JPEG", quality=95)
 
     # Otherwise the image is already the right size, so just copy the image as is
@@ -115,24 +136,35 @@ def resize_image_based_on_class(image_file: str, image_class: str, output_file: 
         shutil.copyfile(image_file, output_file)
 
 
-def resize_with_aspect_ratio():
-    parent_folder = r"E:\NoBackup\DGMD_E-14_FinalProject"
-    text_file = os.path.join(parent_folder, "all_jpg_bad_images_with_class.txt")
-    image_src_parent = parent_folder + r"\images\C3PI full data"
-
+def resize_c3pi_images_to_square(text_file: str, image_src_parent: str, dest_dir: str, size: int = 640):
     df = util.read_c3pi_to_dataframe(text_file, image_src_parent, "image_class")
 
     count = 0
-    dest_folder = parent_folder + r"\images\all_jpgs_640_by_640_B"
     for row in df.itertuples():
         src_file = row.file_path
-        dest_file = os.path.join(dest_folder, row.image_file)
+        dest_file = os.path.join(dest_dir, row.image_file)
         print(dest_file)
-        resize_image_based_on_class(src_file, row.image_class, dest_file, 640, 640)
+        # For C3PI_TEST, we'll crop instead of pad since these images always have extra background that can be removed
+        if row.image_class == "C3PI_Test":
+            resize_image_crop(src_file, dest_file, size, size)
+        else:
+            # For all other (reference) image types, the pill may be close to the edge and the background is fairly
+            # uniform, so padding is safer
+            resize_image_with_padding(src_file, dest_file, size, size)
         count = count + 1
 
     print(f"Images resized: {count}")
 
 
 if __name__ == "__main__":
-    resize_with_aspect_ratio()
+    parent_folder = r"E:\NoBackup\DGMD_E-14_FinalProject"
+    text_file = os.path.join(parent_folder, "all_jpg_images_with_class.csv")
+    image_src_parent = parent_folder + r"\images\C3PI full data"
+    dest_folder = parent_folder + r"\images\all_jpgs_640_by_640_fixed"
+    resize_c3pi_images_to_square(text_file, image_src_parent, dest_folder)
+
+    # parent_folder = r"E:\NoBackup\DGMD_E-14_FinalProject"
+    # text_file = os.path.join(parent_folder, "all_jpg_good_images_with_class_sample.csv")
+    # image_src_parent = parent_folder + r"\images\C3PI full data"
+    # dest_folder = parent_folder + r"\images\640_by_640_sample"
+    # resize_c3pi_images_to_square(text_file, image_src_parent, dest_folder)
