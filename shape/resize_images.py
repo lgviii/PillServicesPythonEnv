@@ -1,7 +1,7 @@
 import os
 import shutil
 from PIL import Image, ImageOps
-import sort_utils as util
+import pandas as pd
 
 
 def resize_image_crop(image_file: str, output_file: str, final_width: int, final_height: int) -> None:
@@ -97,6 +97,53 @@ def resize_image_with_padding(image_file: str, output_file: str, final_width: in
         shutil.copyfile(image_file, output_file)
 
 
+def read_c3pi_to_dataframe(labels_filepath: str, parent_image_dir: str, category: str) -> pd.DataFrame:
+    """
+    Read a labels file and return a pandas DataFrame with a new "file_path" column containing the full path to the
+    image file in that entry.
+
+    Labels file assumed to be in the format (C3PI directory), (Image file name), "(associated value)"
+
+    :param labels_filepath: path to labels file
+    :param parent_image_dir: path to parent folder containing the C3PI data in the original C3PI directory structure
+    :param category: name of the column for the associated values
+    :return: Pandas DataFrame containing the elements from the original CSV file labeled as "image_dir", "image_file",
+             and the specified category name, plus a new "file_path" column containing the full path to the image file
+             in each entry
+    """
+    labels = pd.read_csv(labels_filepath,
+                         names=["image_dir", "image_file", category],
+                         quotechar='"',
+                         dtype="string")
+
+    labels["file_path"] = \
+        labels.apply(lambda row: os.path.join(parent_image_dir, row["image_dir"], "images", row["image_file"]),
+                     axis=1)
+    labels = labels.astype("string")
+    labels = labels.fillna("Empty")
+    return labels
+
+
+def resize_c3pi_images_to_square(text_file: str, image_src_parent: str, dest_dir: str, size: int = 640):
+    df = read_c3pi_to_dataframe(text_file, image_src_parent, "image_class")
+
+    count = 0
+    for row in df.itertuples():
+        src_file = row.file_path
+        dest_file = os.path.join(dest_dir, row.image_file)
+        print(dest_file)
+        # For C3PI_TEST, we'll crop instead of pad since these images always have extra background that can be removed
+        if row.image_class == "C3PI_Test":
+            resize_image_crop(src_file, dest_file, size, size)
+        else:
+            # For all other (reference) image types, the pill may be close to the edge and the background is fairly
+            # uniform, so padding is safer
+            resize_image_with_padding(src_file, dest_file, size, size)
+        count = count + 1
+
+    print(f"Images resized: {count}")
+
+
 def pad_image_to_square(image_file: str, output_file: str) -> None:
     """
     Pads the specified image to be square without changing the size of the larger side, using the color from the
@@ -134,26 +181,6 @@ def pad_image_to_square(image_file: str, output_file: str) -> None:
     # Otherwise the image is already the right size, so just copy the image as is
     else:
         shutil.copyfile(image_file, output_file)
-
-
-def resize_c3pi_images_to_square(text_file: str, image_src_parent: str, dest_dir: str, size: int = 640):
-    df = util.read_c3pi_to_dataframe(text_file, image_src_parent, "image_class")
-
-    count = 0
-    for row in df.itertuples():
-        src_file = row.file_path
-        dest_file = os.path.join(dest_dir, row.image_file)
-        print(dest_file)
-        # For C3PI_TEST, we'll crop instead of pad since these images always have extra background that can be removed
-        if row.image_class == "C3PI_Test":
-            resize_image_crop(src_file, dest_file, size, size)
-        else:
-            # For all other (reference) image types, the pill may be close to the edge and the background is fairly
-            # uniform, so padding is safer
-            resize_image_with_padding(src_file, dest_file, size, size)
-        count = count + 1
-
-    print(f"Images resized: {count}")
 
 
 if __name__ == "__main__":
