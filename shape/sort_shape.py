@@ -2,11 +2,24 @@ import os
 import shutil
 import pandas as pd
 
-import sort_utils as util
 
+def split_resized_images(csv_file: str, image_src_parent: str, image_dest_parent: str) -> None:
+    """
+    Sorts the images in the specified img_src_parent directory into new subdirectories by label for use with model
+    fine-tuning and validation.
 
-def split_resized_images(textfile, image_src_parent, image_dest_parent):
-    df = pd.read_csv(textfile, names=["image_file", "shape"], quotechar='"', dtype="string")
+    The csv_file should be formatted as:
+    (File name),(Shape)
+
+    Note that the image_src_parent is assumed to contain ALL image files listed in the CSV, with no subdirectories, etc.
+
+    :param csv_file: CSV file without headers, containing image file names matched with the associated shape class
+                     for that pill
+    :param image_src_parent: directory containing all image files to be sorted
+    :param image_dest_parent: destination parent directory in which the shape class subfolders should be created, with
+                              pill images copied appropriately
+    """
+    df = pd.read_csv(csv_file, names=["image_file", "shape"], quotechar='"', dtype="string")
     total_image_count = 0
     shape_count = {}
     for row in df.itertuples():
@@ -33,15 +46,6 @@ def split_resized_images(textfile, image_src_parent, image_dest_parent):
 
     print(f"Total images copied: {total_image_count}")
     print(shape_count)
-
-
-def split_original_size_images_by_shape():
-    parent_folder = r"E:\NoBackup\DGMD_E-14_FinalProject"
-    textfile = os.path.join(parent_folder, "shape", "jpg_c3pi_splimage_shape_sample.csv")
-    image_dest_parent = os.path.join(parent_folder, "shape", "orig_size_splimage_sort")
-
-    util.split_original_size_images(parent_folder, textfile, "shape", image_dest_parent,
-                                    lambda row: row.shape)
 
 
 if __name__ == "__main__":
