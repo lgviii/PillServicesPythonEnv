@@ -113,7 +113,7 @@ def run_shape_train_densenet_spl_front(size: int, weight_samples: bool, epoch_nu
                                      get_outputs=lambda outputs: outputs.data)
 
 
-def run_shape_train_densenet_all(weight_samples: bool, epoch_num: int = 10):
+def run_shape_train_densenet_all(weight_samples: bool, epoch_num: int = 10, train_unsplit: bool = False):
     """
     Function used to train the Densenet121 CNN to predict shape classes.
 
@@ -125,6 +125,8 @@ def run_shape_train_densenet_all(weight_samples: bool, epoch_num: int = 10):
 
     :param weight_samples: True if the RandomWeightedSampler should be used, False if not
     :param epoch_num: number of epochs to train, defaults to 10
+    :param train_unsplit: True if all the C3PI JPG images should be used for training, with the split SPL images used
+                          for validation, False if the C3PI JPG images should be split 80/20 for training/validation
     """
     gc.collect()
 
@@ -133,15 +135,24 @@ def run_shape_train_densenet_all(weight_samples: bool, epoch_num: int = 10):
 
     train_path = r"E:\NoBackup\DGMD_E-14_FinalProject\shape\640_by_640_all_sort"
     model_path = r"E:\NoBackup\DGMD_E-14_FinalProject\shape\models" \
-                 + f"\\shape_224x224_all_{'w' if weight_samples else 'nw'}_"
+                 + f"\\shape_224x224_all{'_unsplit' if train_unsplit else ''}_{'w' if weight_samples else 'nw'}_"
 
     # Resize down to 224x224, min size for densenet
     resize_transform = transforms.Resize((224, 224), interpolation=transforms.InterpolationMode.LANCZOS)
-    train_loader, valid_loader = utils.generate_dataloaders_no_reserve(train_path, resize_transform=resize_transform,
-                                                                       weight_samples=weight_samples)
+    if train_unsplit:
+        val_path = r"E:\NoBackup\DGMD_E-14_FinalProject\shape\shape_splimage_split_square_all_sort"
+        train_loader = utils.generate_train_dataloader(train_path, resize_transform=resize_transform,
+                                                       weight_samples=weight_samples)
+        valid_loader = utils.generate_valid_dataloader(val_path, resize_transform=resize_transform)
 
-    assert abs(len(train_loader.dataset) - 47269) < 5
-    assert abs(len(valid_loader.dataset) - 11817) < 5
+        assert abs(len(train_loader.dataset) - 59086) < 5
+        assert abs(len(valid_loader.dataset) - 9036) < 5
+    else:
+        train_loader, valid_loader = utils.generate_dataloaders_no_reserve(train_path, resize_transform=resize_transform,
+                                                                           weight_samples=weight_samples)
+
+        assert abs(len(train_loader.dataset) - 47269) < 5
+        assert abs(len(valid_loader.dataset) - 11817) < 5
 
     model, img_size = utils.initialize_model("densenet", 13, n_unfrozen=150)
     model.train()
@@ -254,12 +265,12 @@ def test_densenet(val_path: str, model_dir: str, model_prefix: str, size: int):
 if __name__ == "__main__":
     # run_shape_train_inception()
     # run_shape_train_densenet_splimage_reserve()
-    # run_shape_train_densenet_all(weight_samples=False)
+    # run_shape_train_densenet_all(weight_samples=False, train_unsplit=True)
     # run_shape_train_densenet_spl_front(size=224, weight_samples=False)
 
     # val_path = r"E:\NoBackup\DGMD_E-14_FinalProject\shape\640_by_640_splimage_sort"
 
     parent_dir = r"E:\NoBackup\DGMD_E-14_FinalProject\shape"
-    val_path = os.path.join(parent_dir, "shape_splimage_split_square_all_sort")
+    val_path = os.path.join(parent_dir, "shape_splimage_split_square_back_sort")
     model_dir = os.path.join(parent_dir, "models")
-    test_densenet("shape_224x224_nw_2022", 224)
+    test_densenet(val_path, model_dir, "shape_224x224_nw_20221123_123637_0.6524439918533604_", 224)
