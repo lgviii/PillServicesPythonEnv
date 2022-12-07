@@ -12,7 +12,8 @@ square for easier resize transforms when validating
 
 Also, all model-related scripts (DataLoaders, etc) assume that images are already sorted into directories labeled with 
 the feature class, with one directory per class.  The `shape_sort.py` module contains the functionality used to create
-these directories, based on CSV files linking image file with shape label.
+these directories, based on CSV files linking image file with shape label.  (See the csv_files directory containing the
+CSV files used for sorting.)
 
 # Requirements
 The shape feature model is built using PyTorch.  Utility functions also rely on pandas and the Pillow fork of PIL.  
@@ -100,3 +101,22 @@ and no WeightedRandomSampler.
 
 ### `test_densenet()`
 Function used to calculate prediction accuracy of trained models against the split SPL images.
+
+# CSV_Files
+This directory contains the CSV files used for sorting images into shape class.  Each one contains the image file name
+and the shape class of the associated pill.  All images are assumed to be in one common directory.
+
+### all_jpg_shape.csv
+This CSV includes all C3PI JPG images.
+
+### jpg_no_splimage_good_shape.csv
+This CSV includes only C3PI_Test and MC_CHALLENGE_V1.0 class JPG images.
+
+### splimage_split_all_shape.csv
+This CSV includes both "front" and "back" split SPL images, used for final validation.
+
+### splimage_split_back_shape.csv
+This CSV includes only "back" split SPL images.
+
+### splimage_split_front_shape.csv
+This CSV includes only "front" split SPL images.
