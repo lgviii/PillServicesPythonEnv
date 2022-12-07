@@ -19,6 +19,8 @@ This subdirectory contains scripts used in fine-tuning the color feature model u
 It includes scripts for image download, resizing, and sorting, and model fine-tuning and inference generation.  It also 
 includes a script for processing videos.
 
+See [color README](color/README.md) for more information.
+
 Code by Mark Abrenio.
 
 # ocr
