@@ -386,6 +386,8 @@ def use_last_n_layers(model, n_unfrozen_layers: int) -> int:
 
     If the model has fewer layers than n_unfrozen_layers, leaves all layers unfrozen.
 
+    Based on method in https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
+
     :param model: PyTorch CNN model for which the last n_unfrozen_layers should be left active for finetuning.
     :param n_unfrozen_layers: number of layers to leave unfrozen
     :return: total number of layers in the model
@@ -405,7 +407,6 @@ def use_last_n_layers(model, n_unfrozen_layers: int) -> int:
     return n_layers
 
 
-# https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html
 def freeze_layers(model, n_unfrozen_layers: int) -> int:
     """
     Freezes all but the specified number of layers, or leaves all layers unfrozen if n_unfrozen_layers is None.
@@ -430,6 +431,8 @@ def initialize_model(model_name: str, num_classes: int, n_unfrozen: int = None):
     """
     Load the model with the specified name and initializes it using default pre-trained weights, modifying it to have
     the final layer output the specified num_classes, optionally specifying the number of layers to leave unfrozen.
+
+    Copied from https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html with a few changes.
 
     :param model_name: name of the model to load and initialize with PyTorch default pre-trained weights for that model
     :param num_classes: number of classes that the final model layer should output
